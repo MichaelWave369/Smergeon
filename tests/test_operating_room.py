@@ -198,6 +198,17 @@ class OperatingRoomTests(unittest.TestCase):
         finally:
             os.unlink(filename)
 
+    def test_display_after_draft_does_not_claim_read_only(self):
+        from smergeon.cli import display
+        packet = collect(FakeClient(), pr=7, prescribe_fixes=True)
+        packet["draft_pr"] = {
+            "status": "draft_created",
+            "url": "https://github.com/owner/repo/pull/8",
+        }
+        shown = display(packet)
+        self.assertIn("DRAFT PR CREATED", shown)
+        self.assertNotIn("DIAGNOSTIC MODE READ ONLY", shown)
+
     def test_explicit_cli_write_creates_draft_only(self):
         plan, request, op = inputs()
         with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".json",
@@ -217,6 +228,9 @@ class OperatingRoomTests(unittest.TestCase):
             self.assertEqual(result, 0)
             result_data = json.loads(stdout.getvalue())
             self.assertEqual(result_data["draft_pr"]["status"], "draft_created")
+            self.assertTrue(result_data["operation_safety"]["draft_pr_created"])
+            self.assertFalse(result_data["operation_safety"]["source_branch_modified"])
+            self.assertEqual(result_data["operation_safety"]["merges_performed"], 0)
         finally:
             os.unlink(filename)
 
