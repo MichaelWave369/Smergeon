@@ -7,6 +7,7 @@ import sys
 from .diagnosis import packet
 from .github import GitHubClient, GitHubError
 from .prescriptions import attach_prescriptions
+from .consent import PlanError, make_plan, verify_plan
 
 
 def collect(client, pr=None, run=None, with_logs=False, max_log_kib=256,
@@ -78,6 +79,19 @@ def display(result):
                 lines.append("   Inspect: " + rx["extra_inspection"])
             lines.append("   Source: " + str(rx["evidence"]["url"] or "(unavailable)"))
         lines.append("Approval required; no scripts, changes or merges executed.")
+    if "surgery_plan" in result:
+        plan = result["surgery_plan"]
+        lines.extend([
+            "\nSURGICAL CONSENT (review packet only):",
+            "   Plan fingerprint: " + plan["plan_fingerprint"],
+            "   Bound PR head: " + plan["binding"]["head_sha"],
+            "   Recipes: " + ", ".join(r["category"] for r in plan["binding"]["recipes"]),
+            "   Status: " + plan["status"],
+            "   No GitHub write, approval, or merge authority granted.",
+        ])
+        if "fingerprint_matches" in result:
+            lines.append("   Fingerprint consistency: " +
+                         ("MATCHES" if result["fingerprint_matches"] else "MISMATCH"))
     if result["warnings"]:
         lines.append("\nLIMITATIONS:")
         lines.extend(" - " + note for note in result["warnings"])
@@ -92,6 +106,10 @@ def main(argv=None):
     target.add_argument("--pr", type=int, help="Pull request number")
     target.add_argument("--run", type=int, help="Workflow run ID")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--surgery-plan", action="store_true",
+                        help="Create a checksum-bound, read-only PR repair review packet")
+    parser.add_argument("--confirm-plan-id", type=str, metavar="SHA256",
+                        help="Check a previously copied plan fingerprint against fresh PR state")
     parser.add_argument("--prescribe", action="store_true",
                         help="Opt in to static, review-only repair prescriptions")
     parser.add_argument("--with-logs", action="store_true",
@@ -101,13 +119,27 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if (args.pr is not None and args.pr < 1) or (args.run is not None and args.run < 1):
         parser.error("Identifiers must be positive.")
+    if args.surgery_plan and args.pr is None:
+        parser.error("--surgery-plan requires --pr (not --run).")
+    if args.confirm_plan_id and not args.surgery_plan:
+        parser.error("--confirm-plan-id requires --surgery-plan.")
     if not 1 <= args.max_log_kib <= 1024:
         parser.error("--max-log-kib must be between 1 and 1024.")
     if not args.with_logs and args.max_log_kib != 256:
         parser.error("--max-log-kib requires --with-logs.")
     try:
         result = collect(GitHubClient(args.repo), args.pr, args.run,
-                         args.with_logs, args.max_log_kib, args.prescribe)
+                         args.with_logs, args.max_log_kib,
+                         args.prescribe or args.surgery_plan)
+        if args.surgery_plan:
+            plan = make_plan(result)
+            result["surgery_plan"] = plan
+            if args.confirm_plan_id:
+                result["fingerprint_matches"] = verify_plan(
+                    plan, result["repository"], args.pr, result["subject"]["head_sha"],
+                    args.confirm_plan_id)
+                if not result["fingerprint_matches"]:
+                    raise PlanError("Plan fingerprint does not match the fresh PR head and diagnosis.")
     except (ValueError, KeyError, GitHubError) as exc:
         print("Intake failed: " + str(exc), file=sys.stderr)
         return 2
