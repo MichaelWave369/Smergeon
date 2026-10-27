@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import sys
 
 from .diagnosis import packet
@@ -10,6 +11,7 @@ from .prescriptions import attach_prescriptions
 from .consent import PlanError, make_plan, verify_plan
 from .operating_room import SurgeryError, stage_repair, create_draft, CONFIRM_WORDS
 from .draft_writer import GitHubDraftWriter
+from .receipt import make_receipt, export_receipt
 
 
 def collect(client, pr=None, run=None, with_logs=False, max_log_kib=256,
@@ -107,6 +109,14 @@ def display(result):
         ])
     if "draft_pr" in result:
         lines.append("   Draft PR created: " + result["draft_pr"]["url"])
+    if "handoff_export" in result:
+        receipt = result["handoff_export"]
+        lines.extend([
+            "\nSURGICAL HANDOFF / UNSIGNED_UNVERIFIED",
+            "   Local file: " + receipt["path"],
+            "   Checksum: " + receipt["checksum_sha256"],
+            "   Not a GitPorch signed worker report or Anti-M completion.",
+        ])
     if result["warnings"]:
         lines.append("\nLIMITATIONS:")
         lines.extend(" - " + note for note in result["warnings"])
@@ -128,6 +138,8 @@ def main(argv=None):
                         help="Create a checksum-bound, read-only PR repair review packet")
     parser.add_argument("--repair-request", type=str, metavar="JSON_FILE",
                         help="Stage a human-written single-file repair request (read-only by default)")
+    parser.add_argument("--handoff-out", type=str, metavar="JSON_FILE",
+                        help="Explicitly export an unsigned receipt to a new local JSON file")
     parser.add_argument("--write-draft", action="store_true",
                         help="Explicitly create a NEW branch and DRAFT PR from a staged repair")
     parser.add_argument("--confirm-write", type=str, metavar="EXACT_PHRASE",
@@ -151,6 +163,10 @@ def main(argv=None):
         parser.error("--repair-request requires --surgery-plan and --confirm-plan-id.")
     if args.write_draft and not args.repair_request:
         parser.error("--write-draft requires --repair-request.")
+    if args.handoff_out and not args.repair_request:
+        parser.error("--handoff-out requires staged --repair-request.")
+    if args.handoff_out and os.path.lexists(args.handoff_out):
+        parser.error("--handoff-out must name a NEW file; refusing overwrite.")
     if args.confirm_write is not None and not args.write_draft:
         parser.error("--confirm-write requires --write-draft.")
     if args.write_draft and args.confirm_write != CONFIRM_WORDS:
@@ -194,6 +210,9 @@ def main(argv=None):
                         "merges_performed": 0,
                         "diagnostic_record_remained_read_only": True,
                     }
+                if args.handoff_out:
+                    handoff = make_receipt(plan, operation, result.get("draft_pr"))
+                    result["handoff_export"] = export_receipt(handoff, args.handoff_out)
     except (ValueError, KeyError, GitHubError, OSError, UnicodeError) as exc:
         print("Intake failed: " + str(exc), file=sys.stderr)
         return 2
