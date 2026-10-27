@@ -41,7 +41,7 @@ Set GITHUB_TOKEN in your environment for private repos or higher GitHub rate lim
 
 ## Next surgeries
 
-R1 (delivered): bounded log analysis. R2 (delivered): review-only repair prescriptions. R3 (delivered): SHA-bound consent and explicitly approved draft-only repair PRs. R4: Anti-M and GitPorch audit receipts. R5: CODE BROWN recurrence detection.
+R1 (delivered): bounded log analysis. R2 (delivered): review-only repair prescriptions. R3 (delivered): SHA-bound consent and explicitly approved draft-only repair PRs. R4 (in progress): unsigned GitPorch and Anti-M handoff receipts, then explicit verified adapters. R5: CODE BROWN recurrence detection.
 
 MIT licensed. Some code histories may still need a specialist.
 
@@ -188,3 +188,15 @@ token out of scripts, shell command arguments and printed logs.
 
 **The default remains diagnostic-only.** No background automation or
 self-authorized changes to other repositories are enabled.
+
+## v0.6 Surgical Receipts · GitPorch / Anti-M shadow handoff
+
+Portable, **unsigned and explicitly unverified** handoff records can now be
+exported with \`--handoff-out NEW_FILE.json\` after preparing an exact-head
+surgery plan and repair request. The export is opt-in, local-only and
+never overwrites an existing file. The normal read-only CLI does not export.
+
+See [Surgical Handoff v0.6](docs/SURGICAL_HANDOFF_V0_6.md) for example
+commands, receipt fields, integrity limitations, and GitPorch/Anti-M
+trust boundaries. **This does not install a GitPorch or Anti-M importer,
+create signed evidence, grant completion authority, or merge anything.**
