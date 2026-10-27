@@ -41,7 +41,7 @@ Set GITHUB_TOKEN in your environment for private repos or higher GitHub rate lim
 
 ## Next surgeries
 
-R1 (delivered): bounded log analysis. R2 (delivered): review-only repair prescriptions. R3: approval-gated patch PRs. R4: Anti-M and GitPorch audit receipts. R5: CODE BROWN recurrence detection.
+R1 (delivered): bounded log analysis. R2 (delivered): review-only repair prescriptions. R3 (in progress): commit-bound surgical consent, then approval-gated draft patch PRs. R4: Anti-M and GitPorch audit receipts. R5: CODE BROWN recurrence detection.
 
 MIT licensed. Some code histories may still need a specialist.
 
@@ -87,3 +87,33 @@ from the target repository before running them, preferably in an isolated enviro
 
 Smergeon does not have authority to approve or merge PRs. Future automated
 patch generation requires a separate explicit opt-in design and independent CI.
+
+## v0.4 Surgical Consent (no GitHub write capabilities)
+
+Smergeon can now export an **exact-commit-bound repair review packet** for a
+failing pull request. Use a real, full 40-character GitHub head SHA; no guessed
+or shortened identifiers are permitted.
+
+    python -m smergeon --repo OWNER/REPO --pr 123 --surgery-plan --json
+
+Optional evidence improvement (additional bounded job-log reads):
+
+    python -m smergeon --repo OWNER/REPO --pr 123 --with-logs --surgery-plan --json
+
+To compare a previously copied fingerprint with freshly inspected PR state:
+
+    python -m smergeon --repo OWNER/REPO --pr 123 --surgery-plan --confirm-plan-id PASTE_64_HEX_FINGERPRINT --json
+
+The review packet binds an allowlisted prescription list, source run identifiers,
+target repository, pull request number, and the exact inspected head SHA to a
+deterministic SHA-256 checksum. It intentionally **excludes** raw logs, arbitrary
+job names, and untrusted check summaries.
+
+A failed fingerprint check means the packet is stale, changed, or unrelated
+to this specific inspected state. A successful check **does not constitute
+human consent**, cryptographic identity, or authorization to change anything.
+SHA-256 in this design is a *consistency checksum*, not a signature.
+
+**Nothing is automatically patched, pushed, retried, approved, or merged.**
+The next milestone is a separate draft-repair-PR executor that must request
+explicit authenticated approval and recheck the current head before writing.
