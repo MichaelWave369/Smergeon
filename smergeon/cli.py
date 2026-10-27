@@ -8,7 +8,7 @@ from .diagnosis import packet
 from .github import GitHubClient, GitHubError
 
 
-def collect(client, pr=None, run=None):
+def collect(client, pr=None, run=None, with_logs=False, max_log_kib=256):
     warnings = []
     if pr is not None:
         pull = client.pr(pr)
@@ -37,7 +37,9 @@ def collect(client, pr=None, run=None):
             "url": item.get("html_url"), "head_sha": item.get("head_sha"),
         }
         runs, checks = [item], []
-    return packet(client.repo, subject, runs, client.jobs, checks, warnings)
+    return packet(client.repo, subject, runs, client.jobs, checks, warnings,
+                  load_log=client.job_log if with_logs else None,
+                  max_log_bytes=max_log_kib * 1024)
 
 
 def display(result):
@@ -71,11 +73,20 @@ def main(argv=None):
     target.add_argument("--pr", type=int, help="Pull request number")
     target.add_argument("--run", type=int, help="Workflow run ID")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--with-logs", action="store_true",
+                        help="Opt in to bounded, signature-only job log inspection")
+    parser.add_argument("--max-log-kib", type=int, default=256,
+                        help="Log read budget per failed job, 1-1024 KiB (default 256)")
     args = parser.parse_args(argv)
     if (args.pr is not None and args.pr < 1) or (args.run is not None and args.run < 1):
         parser.error("Identifiers must be positive.")
+    if not 1 <= args.max_log_kib <= 1024:
+        parser.error("--max-log-kib must be between 1 and 1024.")
+    if not args.with_logs and args.max_log_kib != 256:
+        parser.error("--max-log-kib requires --with-logs.")
     try:
-        result = collect(GitHubClient(args.repo), args.pr, args.run)
+        result = collect(GitHubClient(args.repo), args.pr, args.run,
+                         args.with_logs, args.max_log_kib)
     except (ValueError, KeyError, GitHubError) as exc:
         print("Intake failed: " + str(exc), file=sys.stderr)
         return 2
