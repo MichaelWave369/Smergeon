@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import sys
 
 from .diagnosis import packet
@@ -164,6 +165,8 @@ def main(argv=None):
         parser.error("--write-draft requires --repair-request.")
     if args.handoff_out and not args.repair_request:
         parser.error("--handoff-out requires staged --repair-request.")
+    if args.handoff_out and os.path.lexists(args.handoff_out):
+        parser.error("--handoff-out must name a NEW file; refusing overwrite.")
     if args.confirm_write is not None and not args.write_draft:
         parser.error("--confirm-write requires --write-draft.")
     if args.write_draft and args.confirm_write != CONFIRM_WORDS:
