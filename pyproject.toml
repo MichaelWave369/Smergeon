@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smergeon"
+version = "0.1.0"
+description = "Read-only GitHub CI triage packets"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Phi369 Labs"}]
+dependencies = []
+
+[project.scripts]
+smergeon = "smergeon.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["smergeon*"]
