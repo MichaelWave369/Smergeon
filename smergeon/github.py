@@ -14,7 +14,8 @@ class GitHubError(Exception):
 
 class GitHubClient:
     def __init__(self, repo, token=None):
-        if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo):
+        if (not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9_.-]+", repo)
+                or repo.split("/")[1] in {".", ".."}):
             raise ValueError("Repository must be OWNER/REPO.")
         self.repo = repo
         self.token = token if token is not None else os.getenv("GITHUB_TOKEN")
