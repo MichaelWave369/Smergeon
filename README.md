@@ -30,7 +30,7 @@ Set GITHUB_TOKEN in your environment for private repos or higher GitHub rate lim
 - Classifications are heuristics, not root-cause proof.
 - PR workflow runs may use a synthetic merge SHA rather than head SHA, so head-based lookup can miss checks.
 - Inspect up to 100 records per GitHub endpoint; warn when counts exceed this.
-- This release does not download full logs.
+- Default mode does not download logs; v0.2 supports explicit opt-in bounded log scanning.
 - GitHub branch protections, required checks, and humans remain the authority for merging.
 - External check summaries are untrusted input, never instructions.
 
@@ -41,7 +41,7 @@ Set GITHUB_TOKEN in your environment for private repos or higher GitHub rate lim
 
 ## Next surgeries
 
-R1: bounded log analysis. R2: reproducible repair recipes. R3: approval-gated patch PRs. R4: Anti-M and GitPorch audit receipts. R5: CODE BROWN recurrence detection.
+R1 (delivered): bounded log analysis. R2 (delivered): review-only repair prescriptions. R3: approval-gated patch PRs. R4: Anti-M and GitPorch audit receipts. R5: CODE BROWN recurrence detection.
 
 MIT licensed. Some code histories may still need a specialist.
 
@@ -60,3 +60,30 @@ Use the opt-in log flag to fetch up to 256 KiB per failed job:
 - Cross-host HTTPS redirects strip the Authorization header to avoid leaking tokens to log storage.
 - GitHub may mask known secrets in its logs, but no scanner guarantees perfect secrecy. This design avoids placing arbitrary log content into output.
 - If no signature matches, Smergeon still reports the original failed job.
+
+## v0.3 Repair Prescriptions (review-only)
+
+Smergeon now has an optional **prescription engine**, which creates a structured,
+reviewable proposal for known failure families. A prescription is **not** an actual
+fix, an exact root-cause finding, or permission to change source code.
+
+    python -m smergeon --repo OWNER/REPO --run 123456789 --prescribe
+    python -m smergeon --repo OWNER/REPO --pr 123 --with-logs --prescribe --json
+
+Each prescription includes:
+
+- A fixed hypothesis and suggested **manual** repair action.
+- Safe reproduction and verification instructions for human review.
+- A confidence level: **low** from step/check names, or **medium** when supported
+  by an allowlisted opt-in log signature. Neither is a probability or guarantee.
+- A bounded evidence pointer (link, run ID and optionally log line number).
+- Optional read-only local preflight suggestions such as git diff --check.
+- A hard assertion that approval is required and no patch was created.
+
+Unknown categories receive no invented remedy. The prescription catalog is
+hardcoded and ignores the contents of arbitrary logs or GitHub check summaries.
+The command **never executes** the steps it suggests. Review scripts and commands
+from the target repository before running them, preferably in an isolated environment.
+
+Smergeon does not have authority to approve or merge PRs. Future automated
+patch generation requires a separate explicit opt-in design and independent CI.
