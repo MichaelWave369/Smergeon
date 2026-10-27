@@ -18,6 +18,26 @@ REPO = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9_.-]+", re.ASCII)
 SHA = re.compile(r"[0-9a-fA-F]{40}", re.ASCII)
 HEX_DIGEST = re.compile(r"[0-9a-f]{64}", re.ASCII)
 
+SAFE_AUTHORITY = {
+    "human_approval_required": True,
+    "github_writes_enabled": False,
+    "patches_created": 0,
+    "merges_performed": 0,
+}
+
+REQUIREMENTS = [
+    "Confirm the proposed repair against the failing source and tests.",
+    "Re-read the PR head SHA immediately before preparing any patch.",
+    "Apply the smallest human-reviewed change on a separate branch.",
+    "Use an independent CI run and draft PR review before any merge.",
+]
+
+LIMITATIONS = [
+    "Fingerprint is a consistency checksum, not a digital signature or authentication.",
+    "Matching a plan never grants permission to push, approve or merge.",
+    "Possible synthetic-merge-SHA and API pagination gaps remain.",
+]
+
 
 class PlanError(ValueError):
     """A plan cannot be safely prepared from the available evidence."""
@@ -61,7 +81,7 @@ def make_plan(packet):
         if not isinstance(item, dict):
             raise PlanError("Invalid prescription object.")
         category = item.get("category")
-        if category not in CATALOG:
+        if not isinstance(category, str) or category not in CATALOG:
             raise PlanError("Unknown recipe category in prescription.")
         if item.get("id") != "smergeon.rx." + category + ".v0.3":
             raise PlanError("Prescription ID and category disagree.")
@@ -98,23 +118,9 @@ def make_plan(packet):
         "plan_fingerprint": fingerprint,
         "binding": binding,
         "status": "review_required",
-        "requirements": [
-            "Confirm the proposed repair against the failing source and tests.",
-            "Re-read the PR head SHA immediately before preparing any patch.",
-            "Apply the smallest human-reviewed change on a separate branch.",
-            "Use an independent CI run and draft PR review before any merge.",
-        ],
-        "limitations": [
-            "Fingerprint is a consistency checksum, not a digital signature or authentication.",
-            "Matching a plan never grants permission to push, approve or merge.",
-            "Possible synthetic-merge-SHA and API pagination gaps remain.",
-        ],
-        "authority": {
-            "human_approval_required": True,
-            "github_writes_enabled": False,
-            "patches_created": 0,
-            "merges_performed": 0,
-        },
+        "requirements": list(REQUIREMENTS),
+        "limitations": list(LIMITATIONS),
+        "authority": dict(SAFE_AUTHORITY),
     }
 
 
@@ -127,6 +133,15 @@ def verify_plan(plan, repository, pr_number, current_head_sha,
     authenticated, privilege-scoped review/branch protection controls.
     """
     if not isinstance(plan, dict) or plan.get("schema") != SCHEMA:
+        return False
+    if set(plan) != {
+            "schema", "plan_fingerprint", "binding", "status",
+            "requirements", "limitations", "authority"}:
+        return False
+    if (plan.get("status") != "review_required"
+            or plan.get("requirements") != REQUIREMENTS
+            or plan.get("limitations") != LIMITATIONS
+            or plan.get("authority") != SAFE_AUTHORITY):
         return False
     binding = plan.get("binding")
     if not isinstance(binding, dict) or binding.get("schema") != SCHEMA:
@@ -147,6 +162,7 @@ def verify_plan(plan, repository, pr_number, current_head_sha,
         return False
     if any(not isinstance(item, dict)
            or set(item) != {"recipe_id", "category", "confidence", "run_id"}
+           or not isinstance(item.get("category"), str)
            or item.get("category") not in CATALOG
            or item.get("recipe_id") != "smergeon.rx." + item["category"] + ".v0.3"
            or item.get("confidence") not in ("low", "medium")
