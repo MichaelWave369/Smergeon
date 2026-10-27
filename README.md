@@ -200,3 +200,12 @@ See [Surgical Handoff v0.6](docs/SURGICAL_HANDOFF_V0_6.md) for example
 commands, receipt fields, integrity limitations, and GitPorch/Anti-M
 trust boundaries. **This does not install a GitPorch or Anti-M importer,
 create signed evidence, grant completion authority, or merge anything.**
+
+## v0.7 Cloud Clinic (no local install)
+
+Run read-only triage from **GitHub → Actions → Smergeon Cloud Clinic** after
+v0.7 is merged to main. Enter the public OWNER/REPO and an open PR number,
+then view its workflow summary and download the sanitized \`triage.json\`
+artifact. No logs, code edits or merge permissions are involved.
+
+See [Cloud Clinic instructions](docs/CLOUD_CLINIC_V0_7.md).

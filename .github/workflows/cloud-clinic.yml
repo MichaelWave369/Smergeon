@@ -1,0 +1,54 @@
+name: Smergeon Cloud Clinic (public PR, read-only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: Public GitHub repository (OWNER/REPO)
+        required: true
+        type: string
+        default: MichaelWave369/Smergeon
+      pull_request:
+        description: Open pull request number to diagnose
+        required: true
+        type: number
+
+# Never grant contents:write or pull-requests:write.
+# Only Smergeon's own main is checked out. No target PR code is executed.
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  pull-requests: read
+
+jobs:
+  clinic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout trusted Smergeon source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Inspect public PR (no logs or writes)
+        env:
+          CLINIC_REPO: ${{ inputs.repository }}
+          CLINIC_PR: ${{ inputs.pull_request }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python -m smergeon.cloud_clinic \
+            --repo "$CLINIC_REPO" \
+            --pr "$CLINIC_PR" \
+            --out-dir cloud-clinic-out
+      - name: Upload sanitized clinic report
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smergeon-cloud-clinic-report
+          path: cloud-clinic-out/
+          retention-days: 7
+          if-no-files-found: error
