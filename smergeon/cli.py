@@ -6,9 +6,11 @@ import sys
 
 from .diagnosis import packet
 from .github import GitHubClient, GitHubError
+from .prescriptions import attach_prescriptions
 
 
-def collect(client, pr=None, run=None, with_logs=False, max_log_kib=256):
+def collect(client, pr=None, run=None, with_logs=False, max_log_kib=256,
+            prescribe_fixes=False):
     warnings = []
     if pr is not None:
         pull = client.pr(pr)
@@ -37,9 +39,10 @@ def collect(client, pr=None, run=None, with_logs=False, max_log_kib=256):
             "url": item.get("html_url"), "head_sha": item.get("head_sha"),
         }
         runs, checks = [item], []
-    return packet(client.repo, subject, runs, client.jobs, checks, warnings,
-                  load_log=client.job_log if with_logs else None,
-                  max_log_bytes=max_log_kib * 1024)
+    result = packet(client.repo, subject, runs, client.jobs, checks, warnings,
+                    load_log=client.job_log if with_logs else None,
+                    max_log_bytes=max_log_kib * 1024)
+    return attach_prescriptions(result) if prescribe_fixes else result
 
 
 def display(result):
@@ -59,6 +62,22 @@ def display(result):
         ])
     if not result["findings"]:
         lines.append("No explicit failures in the records inspected.")
+    if "prescriptions" in result:
+        lines.append("\nREPAIR PRESCRIPTIONS (review-only; not a proven fix):")
+        if not result["prescriptions"]:
+            lines.append("No validated prescription for the inspected findings.")
+        for rx in result["prescriptions"]:
+            lines.extend([
+                " [" + rx["confidence"] + "] " + rx["title"],
+                "   Hypothesis: " + rx["hypothesis"],
+                "   Suggested fix: " + rx["proposed_fix"],
+                "   Reproduce: " + rx["reproduction"],
+                "   Verify: " + rx["verification"],
+            ])
+            if rx["extra_inspection"]:
+                lines.append("   Inspect: " + rx["extra_inspection"])
+            lines.append("   Source: " + str(rx["evidence"]["url"] or "(unavailable)"))
+        lines.append("Approval required; no scripts, changes or merges executed.")
     if result["warnings"]:
         lines.append("\nLIMITATIONS:")
         lines.extend(" - " + note for note in result["warnings"])
@@ -73,6 +92,8 @@ def main(argv=None):
     target.add_argument("--pr", type=int, help="Pull request number")
     target.add_argument("--run", type=int, help="Workflow run ID")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--prescribe", action="store_true",
+                        help="Opt in to static, review-only repair prescriptions")
     parser.add_argument("--with-logs", action="store_true",
                         help="Opt in to bounded, signature-only job log inspection")
     parser.add_argument("--max-log-kib", type=int, default=256,
@@ -86,7 +107,7 @@ def main(argv=None):
         parser.error("--max-log-kib requires --with-logs.")
     try:
         result = collect(GitHubClient(args.repo), args.pr, args.run,
-                         args.with_logs, args.max_log_kib)
+                         args.with_logs, args.max_log_kib, args.prescribe)
     except (ValueError, KeyError, GitHubError) as exc:
         print("Intake failed: " + str(exc), file=sys.stderr)
         return 2
