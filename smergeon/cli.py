@@ -110,7 +110,10 @@ def display(result):
     if result["warnings"]:
         lines.append("\nLIMITATIONS:")
         lines.extend(" - " + note for note in result["warnings"])
-    lines.append("\nREAD ONLY: no patches, retries, approvals or merges.")
+    if "draft_pr" in result:
+        lines.append("\nDRAFT PR CREATED: isolated branch written; no source-branch changes or merges.")
+    else:
+        lines.append("\nDIAGNOSTIC MODE READ ONLY: no patches, retries, approvals or merges.")
     return "\n".join(lines)
 
 
@@ -184,6 +187,13 @@ def main(argv=None):
                     result["draft_pr"] = create_draft(
                         writer, plan, operation, request["replacement_text"],
                         confirm=args.confirm_write)
+                    result["operation_safety"] = {
+                        "draft_pr_created": True,
+                        "separate_repair_branch_created": True,
+                        "source_branch_modified": False,
+                        "merges_performed": 0,
+                        "diagnostic_record_remained_read_only": True,
+                    }
     except (ValueError, KeyError, GitHubError, OSError, UnicodeError) as exc:
         print("Intake failed: " + str(exc), file=sys.stderr)
         return 2
