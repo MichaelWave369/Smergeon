@@ -8,6 +8,8 @@ from .diagnosis import packet
 from .github import GitHubClient, GitHubError
 from .prescriptions import attach_prescriptions
 from .consent import PlanError, make_plan, verify_plan
+from .operating_room import SurgeryError, stage_repair, create_draft, CONFIRM_WORDS
+from .draft_writer import GitHubDraftWriter
 
 
 def collect(client, pr=None, run=None, with_logs=False, max_log_kib=256,
@@ -92,6 +94,19 @@ def display(result):
         if "fingerprint_matches" in result:
             lines.append("   Fingerprint consistency: " +
                          ("MATCHES" if result["fingerprint_matches"] else "MISMATCH"))
+    if "operating_room" in result:
+        staged = result["operating_room"]
+        lines.extend([
+            "\nOPERATING ROOM / " + staged["status"].upper().replace("_", " "),
+            "   New branch: " + staged["proposed_branch"],
+            "   Path: " + staged["binding"]["file_path"],
+            "   Expected old blob: " + staged["binding"]["before_blob_sha"],
+            "   New blob: " + staged["binding"]["after_blob_sha"],
+            "   Operation fingerprint: " + staged["operation_id"],
+            "   No write performed unless --write-draft explicitly supplied.",
+        ])
+    if "draft_pr" in result:
+        lines.append("   Draft PR created: " + result["draft_pr"]["url"])
     if result["warnings"]:
         lines.append("\nLIMITATIONS:")
         lines.extend(" - " + note for note in result["warnings"])
@@ -108,6 +123,12 @@ def main(argv=None):
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--surgery-plan", action="store_true",
                         help="Create a checksum-bound, read-only PR repair review packet")
+    parser.add_argument("--repair-request", type=str, metavar="JSON_FILE",
+                        help="Stage a human-written single-file repair request (read-only by default)")
+    parser.add_argument("--write-draft", action="store_true",
+                        help="Explicitly create a NEW branch and DRAFT PR from a staged repair")
+    parser.add_argument("--confirm-write", type=str, metavar="EXACT_PHRASE",
+                        help="Required authorization phrase: CREATE DRAFT PR")
     parser.add_argument("--confirm-plan-id", type=str, metavar="SHA256",
                         help="Check a previously copied plan fingerprint against fresh PR state")
     parser.add_argument("--prescribe", action="store_true",
@@ -123,6 +144,14 @@ def main(argv=None):
         parser.error("--surgery-plan requires --pr (not --run).")
     if args.confirm_plan_id and not args.surgery_plan:
         parser.error("--confirm-plan-id requires --surgery-plan.")
+    if args.repair_request and (not args.surgery_plan or not args.confirm_plan_id):
+        parser.error("--repair-request requires --surgery-plan and --confirm-plan-id.")
+    if args.write_draft and not args.repair_request:
+        parser.error("--write-draft requires --repair-request.")
+    if args.confirm_write is not None and not args.write_draft:
+        parser.error("--confirm-write requires --write-draft.")
+    if args.write_draft and args.confirm_write != CONFIRM_WORDS:
+        parser.error('Write mode requires --confirm-write "CREATE DRAFT PR".')
     if not 1 <= args.max_log_kib <= 1024:
         parser.error("--max-log-kib must be between 1 and 1024.")
     if not args.with_logs and args.max_log_kib != 256:
@@ -140,10 +169,27 @@ def main(argv=None):
                     args.confirm_plan_id)
                 if not result["fingerprint_matches"]:
                     raise PlanError("Plan fingerprint does not match the fresh PR head and diagnosis.")
-    except (ValueError, KeyError, GitHubError) as exc:
+            if args.repair_request:
+                with open(args.repair_request, "rb") as handle:
+                    payload = handle.read(131073)
+                if len(payload) > 131072:
+                    raise SurgeryError("Repair request exceeds 128 KiB.")
+                request = json.loads(payload.decode("utf-8"))
+                operation = stage_repair(
+                    plan, request, args.repo, args.pr, result["subject"]["head_sha"],
+                    args.confirm_plan_id)
+                result["operating_room"] = operation
+                if args.write_draft:
+                    writer = GitHubDraftWriter(args.repo)
+                    result["draft_pr"] = create_draft(
+                        writer, plan, operation, request["replacement_text"],
+                        confirm=args.confirm_write)
+    except (ValueError, KeyError, GitHubError, OSError, UnicodeError) as exc:
         print("Intake failed: " + str(exc), file=sys.stderr)
         return 2
     print(json.dumps(result, indent=2) if args.json else display(result))
+    if "draft_pr" in result:
+        return 0
     return 1 if result["status"] == "code_blue" else 0
 
 

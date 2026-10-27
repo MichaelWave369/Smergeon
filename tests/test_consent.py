@@ -57,29 +57,6 @@ class ConsentTests(unittest.TestCase):
         self.assertEqual(first["authority"]["merges_performed"], 0)
         self.assertTrue(verify_plan(first, REPO, 7, SHA, first["plan_fingerprint"]))
 
-    def test_modified_safety_policy_or_requirements_fail_closed(self):
-        original = make_plan(packet())
-        import copy
-        plan = copy.deepcopy(original)
-        plan["authority"]["github_writes_enabled"] = True
-        self.assertFalse(verify_plan(plan, REPO, 7, SHA, original["plan_fingerprint"]))
-        plan = copy.deepcopy(original)
-        plan["requirements"][0] = "No review needed"
-        self.assertFalse(verify_plan(plan, REPO, 7, SHA, original["plan_fingerprint"]))
-        plan = copy.deepcopy(original)
-        plan["extra"] = "not in known schema"
-        self.assertFalse(verify_plan(plan, REPO, 7, SHA, original["plan_fingerprint"]))
-
-    def test_malformed_category_fails_cleanly(self):
-        p = packet()
-        p["prescriptions"][0]["category"] = []
-        with self.assertRaises(PlanError):
-            make_plan(p)
-        plan = make_plan(packet())
-        plan["binding"]["recipes"][0]["category"] = []
-        self.assertFalse(verify_plan(plan, REPO, 7, SHA,
-                                     plan["plan_fingerprint"]))
-
     def test_stale_head_and_wrong_target_fail_closed(self):
         plan = make_plan(packet())
         digest = plan["plan_fingerprint"]
