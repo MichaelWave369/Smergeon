@@ -44,3 +44,19 @@ Set GITHUB_TOKEN in your environment for private repos or higher GitHub rate lim
 R1: bounded log analysis. R2: reproducible repair recipes. R3: approval-gated patch PRs. R4: Anti-M and GitPorch audit receipts. R5: CODE BROWN recurrence detection.
 
 MIT licensed. Some code histories may still need a specialist.
+
+## v0.2 Log Lab (optional)
+
+Use the opt-in log flag to fetch up to 256 KiB per failed job:
+
+    python -m smergeon --repo OWNER/REPO --run 123456789 --with-logs
+    python -m smergeon --repo OWNER/REPO --pr 123 --with-logs --max-log-kib 512 --json
+
+- Smergeon reads logs **only** when --with-logs is specified.
+- Maximum allowed per failed job: 1 MiB; maximum 10 failed jobs per command.
+- Logs are scanned locally in process for fixed, allowlisted failure signatures.
+- The result contains category, signature label, and line number; **no raw log lines**.
+- Truncation and unavailable logs are explicitly reported; signatures are only hints.
+- Cross-host HTTPS redirects strip the Authorization header to avoid leaking tokens to log storage.
+- GitHub may mask known secrets in its logs, but no scanner guarantees perfect secrecy. This design avoids placing arbitrary log content into output.
+- If no signature matches, Smergeon still reports the original failed job.

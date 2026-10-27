@@ -2,6 +2,8 @@
 
 import re
 
+from .logs import scan_log
+
 FAIL = {"failure", "timed_out", "startup_failure", "action_required"}
 RULES = (
     ("permissions", r"resource not accessible by integration|permission denied|access denied",
@@ -42,11 +44,13 @@ def _finding(name, url, run_id=None, job=None, step=None, summary=""):
     }
 
 
-def packet(repo, subject, runs, load_jobs, checks=(), warnings=()):
+def packet(repo, subject, runs, load_jobs, checks=(), warnings=(),
+           load_log=None, max_log_bytes=262144):
     notices = list(warnings)
     findings = []
     pending = False
     seen = False
+    log_jobs = 0
     for run in runs:
         seen = True
         conclusion = run.get("conclusion")
@@ -75,6 +79,35 @@ def packet(repo, subject, runs, load_jobs, checks=(), warnings=()):
                     name, job.get("html_url") or run.get("html_url"),
                     run.get("id"), job.get("name"), (step or {}).get("name")))
                 count += 1
+            if load_log is not None and job.get("id"):
+                if log_jobs >= 10:
+                    if log_jobs == 10:
+                        notices.append("Log inspection capped at 10 failed jobs per intake.")
+                    log_jobs += 1
+                else:
+                    log_jobs += 1
+                    try:
+                        body, truncated = load_log(job["id"], max_log_bytes)
+                        signals = scan_log(body)
+                        if truncated:
+                            notices.append(
+                                "Log for job " + str(job["id"]) +
+                                " exceeded the configured byte budget; later lines not inspected.")
+                        for signal in signals:
+                            findings.append({
+                                "category": signal["category"],
+                                "evidence": "Log signature: " + signal["signature"] +
+                                            " (line " + str(signal["line"]) + ")",
+                                "next_step": "Inspect the linked job log at the indicated line.",
+                                "url": job.get("html_url") or run.get("html_url"),
+                                "run_id": run.get("id"),
+                                "job": job.get("name"),
+                                "step": None,
+                                "source": "bounded_log_signature",
+                                "line": signal["line"],
+                            })
+                    except Exception:
+                        notices.append("Could not inspect log for job " + str(job["id"]) + ".")
         if not count:
             findings.append(_finding(run.get("name") or "Failed workflow",
                                      run.get("html_url"), run.get("id")))

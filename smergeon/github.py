@@ -56,3 +56,41 @@ class GitHubClient:
 
     def jobs(self, run_id):
         return self.get("actions/runs/" + str(run_id) + "/jobs", {"per_page": 100})
+
+    def job_log(self, job_id, max_bytes=262144):
+        """Fetch at most max_bytes from a job log, stripping auth on redirects.
+
+        GitHub job logs typically redirect to a different HTTPS host.
+        The bearer token must never follow that cross-host redirect.
+        """
+        from urllib.parse import urlsplit
+        from urllib.request import build_opener, HTTPRedirectHandler
+
+        class SafeLogRedirect(HTTPRedirectHandler):
+            def redirect_request(self, req, fp, code, msg, headers, newurl):
+                dest = urlsplit(newurl)
+                if dest.scheme != "https":
+                    raise GitHubError("Refusing a non-HTTPS job log redirect.")
+                redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+                if redirected is not None and dest.netloc.lower() != urlsplit(req.full_url).netloc.lower():
+                    redirected.remove_header("Authorization")
+                return redirected
+
+        if not isinstance(job_id, int) or job_id < 1:
+            raise ValueError("Job ID must be a positive integer.")
+        if not 1024 <= max_bytes <= 1048576:
+            raise ValueError("Log budget must be between 1 KiB and 1 MiB.")
+        url = "https://api.github.com/repos/" + self.repo + "/actions/jobs/" + str(job_id) + "/logs"
+        headers = {"Accept": "application/vnd.github+json", "User-Agent": "smergeon/0.2"}
+        if self.token:
+            headers["Authorization"] = "Bearer " + self.token
+        try:
+            opener = build_opener(SafeLogRedirect)
+            with opener.open(Request(url, headers=headers), timeout=15) as response:
+                raw = response.read(max_bytes + 1)
+        except HTTPError as exc:
+            raise GitHubError("Job logs returned HTTP " + str(exc.code) + ".") from None
+        except (URLError, TimeoutError) as exc:
+            raise GitHubError("Could not read job logs: " + type(exc).__name__) from None
+        truncated = len(raw) > max_bytes
+        return raw[:max_bytes].decode("utf-8", errors="replace"), truncated
