@@ -13,8 +13,8 @@ import os
 import re
 from urllib.parse import urlsplit
 
-from .consent import HEX_DIGEST, REPO, SHA
-from .operating_room import SCHEMA as OP_SCHEMA, _valid_path
+from .consent import HEX_DIGEST, REPO, SHA, verify_plan
+from .operating_room import SCHEMA as OP_SCHEMA, _valid_path, _payload_digest
 
 SCHEMA = "smergeon.surgical-handoff.v0.6"
 DOMAIN = b"smergeon-surgical-handoff-v0.6\n"
@@ -70,19 +70,29 @@ def make_receipt(plan, operation, draft_pr=None):
             or not _valid_path(path)
             or not isinstance(new_branch, str) or not BRANCH.fullmatch(new_branch)):
         raise ReceiptError("Malformed operation target or fingerprints.")
-    if (plan.get("plan_fingerprint") != plan_id
-            or (plan.get("binding") or {}).get("repository") != repo
-            or (plan.get("binding") or {}).get("pull_request") != source
-            or (plan.get("binding") or {}).get("head_sha") != head):
-        raise ReceiptError("Source plan and operation are not bound together.")
+    if repo.split("/")[1] in (".", ".."):
+        raise ReceiptError("Repository path is not canonical.")
+    if set(binding) != {
+            "schema", "repository", "source_pr", "source_head_sha",
+            "source_plan_id", "file_path", "before_blob_sha",
+            "after_blob_sha", "utf8_bytes"}:
+        raise ReceiptError("Unexpected fields in operation binding.")
+    if not verify_plan(plan, repo, source, head, plan_id):
+        raise ReceiptError("Source plan failed consent consistency verification.")
+    if not hmac.compare_digest(operation_id, _payload_digest(binding)):
+        raise ReceiptError("Operation fingerprint mismatch.")
     if operation.get("status") != "review_required":
         raise ReceiptError("Expected a reviewed but unexecuted staging packet.")
     branch_expected = ("smergeon/repair-pr" + str(source) + "-"
                        + head[:8] + "-" + operation_id[:10])
     if branch_expected != new_branch:
         raise ReceiptError("Inconsistent repair branch.")
-    if (operation.get("authority") or {}).get("auto_merge") is not False:
-        raise ReceiptError("Repair packet does not forbid auto-merge.")
+    if operation.get("authority") != {
+            "explicit_authorization_required": True,
+            "no_writes_by_default": True,
+            "auto_merge": False,
+            "source_branch_untouched": True}:
+        raise ReceiptError("Repair packet authority contract is not exact.")
     if not isinstance(binding.get("utf8_bytes"), int) or not 1 <= binding["utf8_bytes"] <= 65536:
         raise ReceiptError("Invalid replacement byte size.")
 
@@ -192,6 +202,7 @@ def verify_receipt(receipt, independently_known_checksum=None):
     )
     op_id, branch, path = op["id"], op["branch"], op["file_path"]
     if (not isinstance(repo, str) or not REPO.fullmatch(repo)
+            or repo.split("/")[1] in (".", "..")
             or type(n) is not int or n < 1
             or not isinstance(head, str) or not SHA.fullmatch(head)
             or not isinstance(plan_id, str) or not HEX_DIGEST.fullmatch(plan_id)
