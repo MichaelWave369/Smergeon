@@ -41,7 +41,7 @@ Set GITHUB_TOKEN in your environment for private repos or higher GitHub rate lim
 
 ## Next surgeries
 
-R1 (delivered): bounded log analysis. R2 (delivered): review-only repair prescriptions. R3 (in progress): commit-bound surgical consent, then approval-gated draft patch PRs. R4: Anti-M and GitPorch audit receipts. R5: CODE BROWN recurrence detection.
+R1 (delivered): bounded log analysis. R2 (delivered): review-only repair prescriptions. R3 (delivered): SHA-bound consent and explicitly approved draft-only repair PRs. R4: Anti-M and GitPorch audit receipts. R5: CODE BROWN recurrence detection.
 
 MIT licensed. Some code histories may still need a specialist.
 
@@ -117,3 +117,74 @@ SHA-256 in this design is a *consistency checksum*, not a signature.
 **Nothing is automatically patched, pushed, retried, approved, or merged.**
 The next milestone is a separate draft-repair-PR executor that must request
 explicit authenticated approval and recheck the current head before writing.
+
+## v0.5 The Operating Room: approval-gated, draft-only repair branches
+
+This milestone introduces an **explicitly gated** draft repair executor. The
+doctor never generates replacement code: a human must supply and review the
+exact replacement text in a local JSON file. The normal read-only CLI remains
+the default. The source PR branch is never modified by the repair executor.
+
+**1. Inspect a failing PR and record its plan fingerprint:**
+
+    python -m smergeon --repo OWNER/REPO --pr 123 --surgery-plan --json
+
+**2. Obtain the blob SHA of the exact source file.** For a public repo,
+visit \`https://api.github.com/repos/OWNER/REPO/contents/path/to/file.py?ref=FULL_HEAD_SHA\`
+and use its \`sha\` field. This is the Git blob SHA, **not** the PR commit SHA.
+Do not upload secrets or credentials as replacement text.
+
+**3. Create a local repair request file** (e.g., \`repair.json\`):
+
+    {
+      "path": "src/example.py",
+      "expected_blob_sha": "REPLACE_WITH_40_HEX_GIT_BLOB_SHA",
+      "replacement_text": "# human-reviewed full replacement file\n"
+    }
+
+One file per operation. Supported text extensions: Python, JavaScript, TypeScript,
+HTML, CSS, JSON, Markdown, TOML, YAML and TXT. Max 64 KiB UTF-8. Hidden,
+generated and workflow paths are excluded. The replacement is a **full file**,
+not a diff hunk, and it must actually differ from the expected original blob.
+
+**4. Dry-run first (no GitHub write access required):**
+
+    python -m smergeon --repo OWNER/REPO --pr 123 --surgery-plan \
+      --confirm-plan-id PASTE_64_HEX_PLAN_FINGERPRINT --repair-request repair.json --json
+
+Dry run prints a deterministic operation fingerprint, target head, before/after
+blob SHA and proposed isolated branch. It never prints the replacement text.
+Do not proceed if the fingerprint or review details are unexpected.
+
+**5. Only after explicitly reviewing and approving the replacement:**
+
+    python -m smergeon --repo OWNER/REPO --pr 123 --surgery-plan \
+      --confirm-plan-id PASTE_64_HEX_PLAN_FINGERPRINT --repair-request repair.json \
+      --write-draft --confirm-write "CREATE DRAFT PR" --json
+
+For this command, \`GITHUB_TOKEN\` must be an authenticated token with only the
+repository's required contents and pull-request write permissions. Keep the
+token out of scripts, shell command arguments and printed logs.
+
+### Enforcement and limitations
+
+- Confirmed write mode rechecks the PR's open status, the exact head commit,
+  same-repo ownership, and the expected file blob before any GitHub mutation.
+- It creates new Git blob/tree/commit objects, then a separate
+  \`smergeon/repair-pr...\` branch and a **draft PR targeting the original PR's
+  head branch**, not main. It does **not** push to that source branch.
+- A stale PR or unexpected blob fails closed. GitHub requests are HTTPS-only
+  with no redirects; API errors never reproduce token-bearing headers.
+- Only one existing regular file can be replaced in this version. No deletes,
+  new files, command execution, workflow changes, approvals or merges.
+- A race or API failure can leave unattached objects or a repair branch without
+  a draft PR. Review and clean up such branches manually.
+- GitHub may run CI when a draft PR opens. Review the replacement and the
+  repository's workflows before authorizing creation.
+- The v0.4 SHA-256 fingerprint checks **consistency**, not identity or legal
+  consent. The extra write command is an explicit local action; GitHub still
+  enforces authenticated account permissions and repository rules.
+- Independent CI, peer review and manual merge are required to complete a fix.
+
+**The default remains diagnostic-only.** No background automation or
+self-authorized changes to other repositories are enabled.
