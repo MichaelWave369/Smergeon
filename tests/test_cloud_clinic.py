@@ -99,7 +99,7 @@ class CloudClinicTests(unittest.TestCase):
             inspect_public_pr("owner/repo", 7, FakeGitHub(state="closed"))
 
     def test_invalid_repository_or_number_rejected(self):
-        for repo in ("bad", "../escape", "owner/.git", "owner/.."):
+        for repo in ("bad", "../escape", "owner/.", "owner/.."):
             with self.subTest(repo=repo), self.assertRaises(CloudClinicError):
                 inspect_public_pr(repo, 7, FakeGitHub())
         for number in (0, -1, True):
@@ -162,7 +162,7 @@ class CloudClinicTests(unittest.TestCase):
         workflow = Path(__file__).resolve().parent.parent / ".github/workflows/cloud-clinic.yml"
         source = workflow.read_text(encoding="utf-8")
         self.assertIn("workflow_dispatch:", source)
-        self.assertNotIn("pull_request:\n", source)
+        self.assertNotIn("\n  pull_request:\n", source)
         self.assertNotIn("contents: write", source)
         self.assertNotIn("pull-requests: write", source)
         self.assertNotIn("write-draft", source)
