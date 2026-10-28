@@ -155,7 +155,7 @@ function getErrorMessage(error) {
 
 async function triage(event) {
   event.preventDefault();
-  if (active) return;
+  if (active || trendBusy) return;
   let target;
   try {
     target = parseTarget(repoInput.value, prInput.value);
