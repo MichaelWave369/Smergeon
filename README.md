@@ -217,3 +217,11 @@ GitHub test-merge commit. Missing or truncated checks are marked PARTIAL;
 an incomplete inspection cannot claim CLEAR. No merge permissions are added.
 
 See [Dual-SHA Reality Scan](docs/CLOUD_CLINIC_V0_8.md).
+
+## v0.9 · Real-PR Field Qualification
+
+GitHub Actions now runs the released Cloud Clinic against actual open
+Smergeon pull requests (same-repository only). It saves three sanitized
+artifacts proving API intake, not a successful repair or merge approval.
+
+See [Real-PR Field Qualification](docs/FIELD_QUALIFICATION_V0_9.md).

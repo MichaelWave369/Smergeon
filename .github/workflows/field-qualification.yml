@@ -1,0 +1,96 @@
+name: Smergeon Field Qualification (self-clinic)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Intentionally NO pull_request_target, issues write, checks write or content write.
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  pull-requests: read
+
+jobs:
+  real-public-pr-observation:
+    # No untrusted fork PR runs in this field-qualification workflow.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout trusted released Smergeon main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Perform actual read-only GitHub API PR intake
+        env:
+          CLINIC_REPO: ${{ github.repository }}
+          CLINIC_PR: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python -m smergeon.cloud_clinic \
+            --repo "$CLINIC_REPO" \
+            --pr "$CLINIC_PR" \
+            --out-dir field-qualification-out
+      - name: Verify real field receipt and zero authority
+        env:
+          CLINIC_REPO: ${{ github.repository }}
+          CLINIC_PR: ${{ github.event.pull_request.number }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import re
+
+          report = json.loads(Path("field-qualification-out/triage.json").read_text())
+          repo = os.environ["CLINIC_REPO"]
+          pr = int(os.environ["CLINIC_PR"])
+          source, observed, authority = (
+              report["source"], report["observed"], report["authority"])
+          assert report["schema"] == "smergeon.cloud-clinic.v0.2"
+          assert source["repository"] == repo
+          assert source["pull_request"] == pr
+          assert source["review_url"] == "https://github.com/" + repo + "/pull/" + str(pr)
+          assert re.fullmatch(r"[0-9a-f]{40}", source["observed_head_sha"])
+          assert observed["status"] in {"CODE_BLUE", "RECOVERY", "CLEAR", "UNKNOWN"}
+          assert observed["coverage"] in {
+              "HEAD_AND_TEST_MERGE_SHA", "HEAD_SHA_ONLY", "PARTIAL"}
+          assert authority == {
+              "github_read_only": True,
+              "raw_logs_exported": False,
+              "patches_created": 0,
+              "drafts_created": 0,
+              "merges_performed": 0,
+              "merge_approval": False,
+          }
+          # Seeing a real PR is not proof its CI passes or it can be merged.
+          qualification = {
+              "schema": "smergeon.field-qualification.v0.1",
+              "result": "REAL_PUBLIC_GITHUB_METADATA_OBSERVED",
+              "repository": repo,
+              "pull_request": pr,
+              "observed_status": observed["status"],
+              "coverage": observed["coverage"],
+              "real_api_intake_executed": True,
+              "target_code_executed": False,
+              "merge_approved": False,
+              "human_review_required": True,
+          }
+          Path("field-qualification-out/field-qualification.json").write_text(
+              json.dumps(qualification, sort_keys=True, indent=2) + "\n")
+          print("Field intake observed an actual GitHub PR, with no authority granted.")
+          PY
+      - name: Upload sanitized field-qualification packet
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smergeon-real-pr-field-qualification
+          path: field-qualification-out/
+          retention-days: 7
+          if-no-files-found: error
