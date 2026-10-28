@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "smergeon"
-version = "0.7.0"
+version = "0.8.0"
 description = "Read-only GitHub CI triage packets"
 readme = "README.md"
 requires-python = ">=3.10"
