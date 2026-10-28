@@ -14,10 +14,11 @@ import re
 import sys
 
 from .cli import collect
+from .diagnosis import packet
 from .github import GitHubClient, GitHubError
 from .prescriptions import CATALOG
 
-SCHEMA = "smergeon.cloud-clinic.v0.1"
+SCHEMA = "smergeon.cloud-clinic.v0.2"
 ALLOWED_STATUS = {"code_blue", "recovery", "clear", "unknown"}
 SHA = re.compile(r"[0-9a-fA-F]{40}\Z")
 REPO = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9_.-]+\Z")
@@ -25,8 +26,9 @@ CATEGORIES = set(CATALOG) | {"unknown"}
 MAX_SIGNALS = 500
 LIMITATIONS = (
     "Public GitHub PRs only; private repositories are rejected.",
-    "Head-SHA lookup can miss synthetic merge-SHA workflows.",
+    "Head and test-merge SHA contexts are both inspected when available; neither proves all required checks were seen.",
     "Only the first 100 runs, checks and jobs per API endpoint are examined.",
+    "GitHub can recalculate test merge commits; stale or unavailable contexts remain uncertain.",
     "No full logs, source checkout, untrusted check text, or secrets are exported.",
     "Metadata-based categories are unverified clues, not established root causes.",
     "CLEAR is not the GitHub required-check gate and never authorizes a merge.",
@@ -65,9 +67,64 @@ def inspect_public_pr(repo, number, client=None):
             or str(observed.get("subject", {}).get("head_sha", "")).lower() != sha.lower()
             or observed.get("safety", {}).get("read_only") is not True):
         raise CloudClinicError("Head SHA changed or safety record invalid.")
-    signals = observed.get("findings") or []
+    signals = list(observed.get("findings") or [])
+    warnings = observed.get("warnings") or []
+    partial = any(
+        "unavailable" in warning.lower() or "first 100" in warning.lower()
+        or "only part" in warning.lower() or "failed to load" in warning.lower()
+        for warning in warnings
+    )
+    status = observed["status"]
+    merge_sha = pr.get("merge_commit_sha")
+    merge_status = "NOT_CHECKED"
+    inspected_merge_sha = None
+    # A merge SHA is GitHub's ephemeral test-merge commit for open PRs.
+    # It is *not* the head SHA and must never be treated as a signed check.
+    if (pr.get("mergeable") is True
+            and isinstance(merge_sha, str) and SHA.fullmatch(merge_sha)
+            and merge_sha.lower() != sha.lower()):
+        inspected_merge_sha = merge_sha.lower()
+        try:
+            data = reader.checks(merge_sha)
+            checks = data.get("check_runs", [])
+            if data.get("total_count", 0) > len(checks):
+                partial = True
+            if len(checks) > 100:
+                raise CloudClinicError("Unexpected merge check response size.")
+            # No workflows or logs are requested in the merge context.
+            merge_packet = packet(repo, {"kind": "pull_request", "number": number,
+                                         "head_sha": sha}, [], lambda run_id: {},
+                                  checks=checks)
+            merge_status = merge_packet["status"].upper()
+            signals.extend(merge_packet["findings"])
+            if status != "code_blue":
+                if merge_packet["status"] == "code_blue":
+                    status = "code_blue"
+                elif status == "recovery" or merge_packet["status"] == "recovery":
+                    status = "recovery"
+                elif status == "unknown":
+                    status = merge_packet["status"]
+        except GitHubError:
+            partial = True
+            merge_status = "UNAVAILABLE"
+    elif pr.get("mergeable") is True:
+        # A reported mergeable PR without its expected SHA is incomplete.
+        partial = True
+        merge_status = "UNAVAILABLE"
+
+    # Reject if GitHub's live source changed during our multi-call inspection.
+    current = reader.pr(number)
+    if (current.get("state") != "open"
+            or (current.get("head") or {}).get("sha") != sha
+            or current.get("merge_commit_sha") != merge_sha
+            or ((current.get("base") or {}).get("repo") or {}).get("private") is not False):
+        raise CloudClinicError("PR head or test-merge SHA changed during inspection.")
+
     if len(signals) > MAX_SIGNALS:
         raise CloudClinicError("Too many findings for bounded output.")
+    if partial and status == "clear":
+        # Missing checks are NOT an all-clear, even if the inspected ones passed.
+        status = "unknown"
     counts = Counter()
     for item in signals:
         category = item.get("category")
@@ -80,24 +137,22 @@ def inspect_public_pr(repo, number, client=None):
         }
         for category in sorted(counts) if category in CATALOG
     ]
-    warnings = observed.get("warnings") or []
-    limited = any(
-        "unavailable" in warning.lower() or "first 100" in warning.lower()
-        or "truncated" in warning.lower() for warning in warnings
-    )
     return {
         "schema": SCHEMA,
         "source": {
             "repository": repo,
             "pull_request": number,
             "observed_head_sha": sha.lower(),
+            "observed_merge_sha": inspected_merge_sha,
             "review_url": "https://github.com/" + repo + "/pull/" + str(number),
         },
         "observed": {
-            "status": observed["status"].upper(),
+            "status": status.upper(),
             "signal_count": len(signals),
             "categories": {c: counts[c] for c in sorted(counts)},
-            "coverage": "PARTIAL" if limited else "HEAD_SHA_ONLY",
+            "merge_context_status": merge_status,
+            "coverage": "PARTIAL" if partial else (
+                "HEAD_AND_TEST_MERGE_SHA" if inspected_merge_sha else "HEAD_SHA_ONLY"),
         },
         "review_guidance": hints,
         "limitations": list(LIMITATIONS),
@@ -118,6 +173,10 @@ def summary_markdown(report):
         "**Patient:** " + subject["repository"] + " PR #" + str(subject["pull_request"]),
         "",
         "**Observed PR head:** " + subject["observed_head_sha"],
+        "",
+        "**Inspected test merge:** " + (subject["observed_merge_sha"] or "NOT AVAILABLE"),
+        "",
+        "**Test merge status:** " + status["merge_context_status"],
         "",
         "**Coverage:** " + status["coverage"] + " (not a merge gate)",
         "",
