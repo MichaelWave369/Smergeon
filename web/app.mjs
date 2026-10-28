@@ -6,6 +6,9 @@ import {
   LABELS, analyzeResults, isSha, parseTarget, toDownloadReport,
   validateFreshPR, validatePR,
 } from "./clinic-core.mjs";
+import {
+  analyzeCodeBrown, bindCodeBrownSource, confirmSameCodeBrownSource
+} from "./code-brown.mjs";
 
 const form = document.getElementById("intake-form");
 const repoInput = document.getElementById("repo");
@@ -16,8 +19,13 @@ const panel = document.getElementById("report-panel");
 const badge = document.getElementById("diagnosis-badge");
 const categoryList = document.getElementById("category-list");
 const downloadButton = document.getElementById("download-report");
+const brownButton = document.getElementById("brown-button");
+const brownStatus = document.getElementById("brown-status");
+const brownResults = document.getElementById("brown-results");
 let lastReport = null;
+let trendPatient = null;
 let active = false;
+let trendBusy = false;
 
 const explanations = {
   code_blue: "Failed checks were observed. Follow the original GitHub checks and investigate their first actionable errors. This is not a proven root cause.",
@@ -157,6 +165,10 @@ async function triage(event) {
   }
   active = true;
   lastReport = null;
+  trendPatient = null;
+  brownButton.disabled = true;
+  brownResults.hidden = true;
+  brownStatus.textContent = "COMPLETE TRIAGE FIRST";
   button.disabled = true;
   button.textContent = "INSPECTING PUBLIC CI…";
   setInputStatus("CONTACTING GITHUB · METADATA READ ONLY");
@@ -165,7 +177,8 @@ async function triage(event) {
   const timer = setTimeout(() => abort.abort(), 20000);
   try {
     const source = reportUrl(target.repo, "pulls/" + target.number);
-    const initial = validatePR(await apiGET(source, abort.signal), target);
+    const rawInitialPR = await apiGET(source, abort.signal);
+    const initial = validatePR(rawInitialPR, target);
     const first = await fetchContext(target, initial.headSha, abort.signal);
     let contexts = first.contexts;
     let partial = first.incomplete;
@@ -191,6 +204,16 @@ async function triage(event) {
       mergeable: initial.mergeable,
     });
     showReport(target, initial, diagnosis);
+    // This optional check deliberately refuses fork-origin PRs and unsupported
+    // branch names; regular read-only CI triage still works for those PRs.
+    try {
+      trendPatient = bindCodeBrownSource(rawInitialPR, target);
+      brownButton.disabled = false;
+      brownStatus.textContent = "OPTIONAL · PUBLIC HISTORY · READ ONLY";
+    } catch {
+      brownButton.disabled = true;
+      brownStatus.textContent = "UNAVAILABLE FOR FORK OR UNSUPPORTED BRANCH";
+    }
     const path = new URL(location.href);
     path.searchParams.set("repo", target.repo);
     path.searchParams.set("pr", String(target.number));
@@ -220,6 +243,89 @@ function downloadReport() {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(blobUrl), 0);
 }
+
+
+function showTrend(trend) {
+  brownResults.hidden = false;
+  document.getElementById("brown-verdict").textContent = trend.outcome.replaceAll("_"," ");
+  document.getElementById("brown-coverage").textContent = trend.coverage;
+  document.getElementById("brown-summary").textContent =
+    "Matched " + trend.bound_to_pr_runs + " of " + trend.examined_runs +
+    " recent public run records. " + trend.repeated_workflows +
+    " recurring workflow(s), " + trend.watching_workflows +
+    " under watch. Neither diagnosis nor merge approval.";
+  const container = document.getElementById("brown-workflows");
+  container.replaceChildren();
+  if (!trend.workflows.length) {
+    const note = document.createElement("p");
+    note.className = "small-note";
+    note.textContent = "No eligible workflow runs could be tied to this specific PR and branch.";
+    container.append(note);
+  }
+  for(const workflow of trend.workflows) {
+    const entry = document.createElement("div");
+    entry.className = "brown-workflow";
+    const title = document.createElement("strong");
+    title.textContent = "WORKFLOW #" + workflow.workflow_id +
+      " · " + workflow.status.replaceAll("_", " ");
+    const detail = document.createElement("span");
+    detail.textContent = workflow.consecutive_failed_revisions +
+      " consecutive failed completed revision(s) · " +
+      workflow.pending_revisions + " pending · current head represented: " +
+      (workflow.current_head_has_run ? "YES" : "NOT OBSERVED");
+    entry.append(title, detail);
+    if (workflow.evidence_run_ids.length) {
+      const links = document.createElement("div");
+      links.className = "brown-evidence";
+      for(const runId of workflow.evidence_run_ids) {
+        const a = document.createElement("a");
+        a.href = "https://github.com/" + trend.source.repository +
+          "/actions/runs/" + runId;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.textContent = "RUN #" + runId + " ↗";
+        links.append(a);
+      }
+      entry.append(links);
+    }
+    container.append(entry);
+  }
+}
+
+async function checkCodeBrown() {
+  if (active || trendBusy || !trendPatient) return;
+  trendBusy = true;
+  brownButton.disabled = true;
+  brownResults.hidden = true;
+  brownStatus.classList.remove("error");
+  brownStatus.textContent = "LOOKING FOR REPEATED FAILURES…";
+  const source = {...trendPatient};
+  const abort = new AbortController();
+  const timer = setTimeout(()=>abort.abort(), 20000);
+  try {
+    const prUrl = reportUrl(source.repository, "pulls/" + source.pull_request);
+    confirmSameCodeBrownSource(source, await apiGET(prUrl,abort.signal),
+      {repo:source.repository,number:source.pull_request});
+    const query = "actions/runs?event=pull_request&branch=" +
+      encodeURIComponent(source.branch) + "&per_page=50";
+    const data = await apiGET(reportUrl(source.repository, query),abort.signal);
+    confirmSameCodeBrownSource(source, await apiGET(prUrl,abort.signal),
+      {repo:source.repository,number:source.pull_request});
+    const trend = analyzeCodeBrown(data,source);
+    showTrend(trend);
+    brownStatus.textContent = "READ-ONLY TREND INSPECTION COMPLETE";
+  } catch(error) {
+    brownResults.hidden = true;
+    brownStatus.classList.add("error");
+    brownStatus.textContent = "REFUSED · " + getErrorMessage(error);
+  } finally {
+    clearTimeout(timer);
+    trendBusy = false;
+    brownButton.disabled = !trendPatient || active;
+  }
+}
+
+brownButton.addEventListener("click",()=>void checkCodeBrown());
 
 form.addEventListener("submit", triage);
 downloadButton.addEventListener("click", downloadReport);
