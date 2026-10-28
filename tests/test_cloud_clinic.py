@@ -170,5 +170,97 @@ class CloudClinicTests(unittest.TestCase):
         self.assertIn("actions/upload-artifact@v4", source)
 
 
+class MergeAwareGitHub(FakeGitHub):
+    merge_sha = "b" * 40
+
+    def __init__(self, *, merge_result="failure", incomplete=False,
+                 stale=False, available=True, has_merge=True):
+        super().__init__(status="success", checks=False)
+        self.merge_result = merge_result
+        self.incomplete = incomplete
+        self.stale = stale
+        self.available = available
+        self.has_merge = has_merge
+
+    def pr(self, number):
+        item = super().pr(number)
+        item["mergeable"] = True
+        item["merge_commit_sha"] = self.merge_sha if self.has_merge else None
+        if self.stale and self.calls.count("pr") > 2:
+            item["head"]["sha"] = "c" * 40
+        return item
+
+    def checks(self, sha):
+        self.calls.append("checks " + sha)
+        if sha == HEAD:
+            return {"total_count": 0, "check_runs": []}
+        if sha != self.merge_sha:
+            raise AssertionError("Unexpected merge SHA")
+        if not self.available:
+            from smergeon.github import GitHubError
+            raise GitHubError("Synthetic unavailable")
+        return {"total_count": 101 if self.incomplete else 1, "check_runs": [
+            {"name": "SECRET_SYNTHETIC_CHECK_NAME",
+             "status": "completed", "conclusion": self.merge_result,
+             "output": {"summary": "SECRET_SYNTHETIC_SUMMARY"}},
+        ]}
+
+    def jobs(self, run_id):
+        raise AssertionError("A successful head run should not read failed job logs.")
+
+
+class CloudClinicMergeContextTests(unittest.TestCase):
+    def test_failing_merge_check_is_detected_even_if_head_passes(self):
+        fake = MergeAwareGitHub()
+        report = inspect_public_pr("owner/repo", 7, fake)
+        self.assertEqual(report["observed"]["status"], "CODE_BLUE")
+        self.assertEqual(report["observed"]["merge_context_status"], "CODE_BLUE")
+        self.assertEqual(report["observed"]["coverage"], "HEAD_AND_TEST_MERGE_SHA")
+        self.assertEqual(report["source"]["observed_merge_sha"], "b" * 40)
+        self.assertGreater(report["observed"]["signal_count"], 0)
+        self.assertEqual(fake.calls.count("pr"), 3)
+        self.assertIn("checks " + fake.merge_sha, fake.calls)
+        payload = json.dumps(report) + summary_markdown(report)
+        self.assertNotIn("SECRET_SYNTHETIC_CHECK_NAME", payload)
+        self.assertNotIn("SECRET_SYNTHETIC_SUMMARY", payload)
+        self.assertFalse(report["authority"]["merge_approval"])
+
+    def test_successful_head_and_merge_still_not_merge_approval(self):
+        result = inspect_public_pr("owner/repo", 7,
+                                   MergeAwareGitHub(merge_result="success"))
+        self.assertEqual(result["observed"]["status"], "CLEAR")
+        self.assertEqual(result["observed"]["merge_context_status"], "CLEAR")
+        self.assertFalse(result["authority"]["merge_approval"])
+
+    def test_missing_merge_sha_cannot_be_called_clear(self):
+        data = inspect_public_pr("owner/repo", 7, MergeAwareGitHub(has_merge=False))
+        self.assertEqual(data["observed"]["status"], "UNKNOWN")
+        self.assertEqual(data["observed"]["merge_context_status"], "UNAVAILABLE")
+        self.assertEqual(data["observed"]["coverage"], "PARTIAL")
+
+    def test_unavailable_merge_checks_fail_to_unknown_not_clear(self):
+        result = inspect_public_pr("owner/repo", 7,
+                                   MergeAwareGitHub(available=False))
+        self.assertEqual(result["observed"]["status"], "UNKNOWN")
+        self.assertEqual(result["observed"]["coverage"], "PARTIAL")
+        self.assertEqual(result["observed"]["merge_context_status"], "UNAVAILABLE")
+
+    def test_paginated_merge_checks_mark_coverage_partial(self):
+        data = inspect_public_pr("owner/repo", 7,
+                                 MergeAwareGitHub(incomplete=True, merge_result="success"))
+        self.assertEqual(data["observed"]["status"], "UNKNOWN")
+        self.assertEqual(data["observed"]["coverage"], "PARTIAL")
+
+    def test_failed_merge_check_survives_incomplete_coverage(self):
+        data = inspect_public_pr("owner/repo", 7,
+                                 MergeAwareGitHub(incomplete=True))
+        self.assertEqual(data["observed"]["status"], "CODE_BLUE")
+        self.assertEqual(data["observed"]["coverage"], "PARTIAL")
+
+    def test_advanced_source_head_fails_closed(self):
+        with self.assertRaises(CloudClinicError):
+            inspect_public_pr("owner/repo", 7, MergeAwareGitHub(stale=True))
+
+
 if __name__ == "__main__":
     unittest.main()

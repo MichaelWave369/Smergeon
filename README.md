@@ -209,3 +209,11 @@ then view its workflow summary and download the sanitized \`triage.json\`
 artifact. No logs, code edits or merge permissions are involved.
 
 See [Cloud Clinic instructions](docs/CLOUD_CLINIC_V0_7.md).
+
+## v0.8 · Dual-SHA Reality Scan
+
+The Cloud Clinic now checks both an open PR's head commit and its available
+GitHub test-merge commit. Missing or truncated checks are marked PARTIAL;
+an incomplete inspection cannot claim CLEAR. No merge permissions are added.
+
+See [Dual-SHA Reality Scan](docs/CLOUD_CLINIC_V0_8.md).
