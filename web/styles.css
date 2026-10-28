@@ -207,3 +207,45 @@ h2 { font-family: var(--display); font-size: clamp(35px, 4.2vw, 60px); letter-sp
   .heartbeat { animation: none; stroke-dashoffset: 0; }
   .button { transition: none; }
 }
+
+
+/* CODE BROWN: explicit history inspection, never an automatic monitor. */
+.brown-clinic {
+  border: 1px solid #776443;
+  background: #231f1d;
+  padding: 25px;
+  margin: 30px 0 24px;
+}
+.brown-heading-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 15px;
+}
+.brown-heading-row h4 {
+  margin: 7px 0 0; font: 900 29px var(--display); letter-spacing: -.02em;
+}
+.brown-heading-row h4 span { color: var(--amber); }
+.brown-stamp { color: var(--amber); border: 1px solid #725c3c; padding: 10px;
+  font: 10px/1.4 var(--mono); letter-spacing: .07em; }
+.brown-clinic>.small-note { margin-top: 21px; }
+.brown-controls { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+.brown-button { color: #211811; border-color: var(--amber); background: var(--amber); }
+.brown-button:hover:not(:disabled) { background: #ffe0ac; }
+.brown-status { font: 10px/1.6 var(--mono); color: #c3b19a; }
+.brown-status.error { color: #ffb4a8; }
+.brown-verdict { display: flex; flex-wrap: wrap; justify-content: space-between;
+  align-items: center; gap: 12px; color: var(--amber); margin-top: 23px;
+  padding: 17px 0; border-block: 1px solid #6e604a; }
+.brown-verdict strong { font: 900 21px var(--display); }
+.brown-verdict span { font: 10px var(--mono); }
+.brown-workflows { display: grid; gap: 9px; margin: 17px 0; }
+.brown-workflow { background: #171e22; border: 1px solid #5c503c;
+  padding: 15px; display: grid; gap: 10px; }
+.brown-workflow strong { color: var(--amber); font: 700 12px/1.5 var(--mono); }
+.brown-workflow span { color: #b0bbba; font: 11px/1.5 var(--mono); }
+.brown-evidence { display: flex; flex-wrap: wrap; gap: 12px; }
+.brown-evidence a { color: var(--mint); font: 11px var(--mono); text-decoration: none; }
+.brown-evidence a:hover { text-decoration: underline; }
+@media (max-width:550px) {
+  .brown-clinic { padding: 18px; }
+  .brown-heading-row { align-items: flex-start; flex-direction: column; }
+  .brown-stamp { font-size: 9px; }
+}
