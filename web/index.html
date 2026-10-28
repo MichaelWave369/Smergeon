@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1119">
+  <meta name="description" content="Smergeon: free, open-source repository surgery. Inspect public GitHub CI, review evidence, and keep the merge button firmly under human control.">
+  <meta property="og:title" content="Smergeon · Repository Hospital">
+  <meta property="og:description" content="Diagnosis before intervention. A read-only GitHub CI clinic from Φ369 Labs.">
+  <title>Smergeon · Repository Hospital</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer type="module" src="./app.mjs"></script>
+</head>
+<body>
+  <a class="skip-link" href="#clinic">Skip to the clinic</a>
+  <div class="background-noise" aria-hidden="true"></div>
+  <header class="site-header wrap">
+    <a class="brand" href="./" aria-label="Smergeon home">
+      <span class="brand-symbol" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M10 13V8H5v32h5v-5M38 13V8h5v32h-5v-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M10 23h9l4-9 5 19 4-10h6" stroke="#A7F1CF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <span class="brand-title">SMERGEON<span class="brand-period">.</span><small>REPOSITORY HOSPITAL</small></span>
+    </a>
+    <nav class="site-nav" aria-label="Main navigation">
+      <a href="#clinic">THE CLINIC</a>
+      <a href="#protocol">PROTOCOL</a>
+      <a href="https://github.com/MichaelWave369/Smergeon" target="_blank" rel="noopener noreferrer">SOURCE <span aria-hidden="true">↗</span></a>
+    </nav>
+    <span class="header-lamp"><span class="lamp-dot"></span> INTAKE ONLINE</span>
+  </header>
+
+  <main>
+    <section class="hero wrap" aria-labelledby="headline">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="eyebrow-line"></span> Φ369 LABS <span class="slash">/</span> SOFTWARE MEDICINE <span class="slash">/</span> EST. 2026</p>
+        <h1 id="headline">CODE <span class="red-text">BLUE?</span><br><span class="headline-inset">CALL THE</span><br><em>SMERGEON.</em></h1>
+        <p class="hero-description">Broken CI. Failed checks. A pull request with mysterious symptoms. Send it to triage before reaching for the merge button.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#clinic">ADMIT A REPOSITORY <span aria-hidden="true">↗</span></a>
+          <a class="button ghost" href="https://github.com/MichaelWave369/Smergeon/actions/workflows/cloud-clinic.yml" target="_blank" rel="noopener noreferrer">GITHUB CLOUD CLINIC <span aria-hidden="true">↗</span></a>
+        </div>
+        <div class="hero-facts"><span><b>100%</b> OPEN SOURCE</span><span><b>0</b> AUTO-MERGES</span><span><b>0</b> TOKENS REQUIRED</span></div>
+      </div>
+      <div class="hero-display" aria-label="Illustrated surgical monitor showing a safe read-only diagnosis">
+        <div class="display-header"><span class="tiny-label">SMRG / EKG-01</span><span class="tiny-label">LIVE SYSTEM ART</span></div>
+        <svg class="ecg-screen" viewBox="0 0 560 250" role="img" aria-label="Stylized green electrocardiogram line showing a pulse">
+          <defs><pattern id="grid" width="26" height="26" patternUnits="userSpaceOnUse"><path d="M26 0H0V26" fill="none" stroke="#163334" stroke-width="1"/></pattern><linearGradient id="pulseGradient" x1="0" x2="1"><stop stop-color="#75dfba" stop-opacity=".05"/><stop offset=".35" stop-color="#abf7c8"/><stop offset="1" stop-color="#64ccaf" stop-opacity=".8"/></linearGradient></defs>
+          <rect x="0" y="0" width="560" height="250" fill="url(#grid)"/>
+          <path class="heartbeat-glow" d="M0 135H128L147 135 167 112 191 173 227 44 261 206 295 123 319 135H560" stroke="url(#pulseGradient)" stroke-width="10" fill="none" opacity=".17"/>
+          <path class="heartbeat" d="M0 135H128L147 135 167 112 191 173 227 44 261 206 295 123 319 135H560" stroke="url(#pulseGradient)" stroke-width="3.5" fill="none" stroke-linejoin="round"/>
+          <circle cx="320" cy="135" r="5" fill="#aff0d5"/>
+          <text x="20" y="30" fill="#78aa9e" font-size="12" font-family="monospace" letter-spacing="2">PULSE DETECTED</text>
+          <text x="20" y="232" fill="#78aa9e" font-size="11" font-family="monospace">OBSERVATION ≠ AUTHORIZATION</text>
+          <text x="539" y="30" text-anchor="end" fill="#78aa9e" font-size="11" font-family="monospace">01:00 / RX</text>
+        </svg>
+        <div class="monitor-lower">
+          <div><small>HUMAN APPROVAL</small><strong class="good">REQUIRED</strong></div>
+          <div><small>REPOSITORY WRITES</small><strong>DISABLED</strong></div>
+          <div><small>AUTO-MERGE</small><strong class="good">NEVER</strong></div>
+        </div>
+        <div class="monitor-sticker">FIRST, DO NO<br>MERGE HARM.</div>
+      </div>
+    </section>
+
+    <div class="ticker" aria-hidden="true"><div>INTAKE • DIAGNOSE • REVIEW • REPAIR WITH CONSENT <span>✚</span> LEDGER ABOVE EGO <span>✚</span> FIRST, DO NO MERGE HARM <span>✚</span> INTAKE • DIAGNOSE • REVIEW •</div></div>
+
+    <section class="clinic-section wrap" id="clinic" aria-labelledby="clinic-heading">
+      <div class="section-title-row"><div><div class="label-number">01 / WALK-IN CLINIC</div><h2 id="clinic-heading">ADMIT A PULL REQUEST.</h2></div><span class="status-tag"><span class="lamp-dot"></span> READ-ONLY CHECK</span></div>
+      <div class="clinic-grid">
+        <div class="intake-card">
+          <div class="card-topline"><span>INTAKE FORM</span><span>FORM 001–RX</span></div>
+          <p>Enter a <strong>public</strong> GitHub repository and an <strong>open PR</strong>. This browser reads public GitHub metadata only. It does not request permissions or run code.</p>
+          <form id="intake-form" novalidate>
+            <label for="repo">REPOSITORY <span class="required">REQUIRED</span></label>
+            <div class="field-wrap"><span class="field-prefix" aria-hidden="true">⌘</span><input required spellcheck="false" autocapitalize="off" autocomplete="off" id="repo" name="repo" placeholder="OWNER/REPO" maxlength="150" aria-describedby="repo-hint"></div>
+            <p class="input-hint" id="repo-hint">Example: MichaelWave369/Smergeon</p>
+            <label for="pr-number">PULL REQUEST NUMBER <span class="required">REQUIRED</span></label>
+            <div class="field-wrap"><span class="field-prefix" aria-hidden="true">#</span><input required inputmode="numeric" pattern="[1-9][0-9]*" id="pr-number" name="pr" type="text" placeholder="9" maxlength="9"></div>
+            <button type="submit" class="button primary large" id="inspect-button">BEGIN TRIAGE <span aria-hidden="true">↗</span></button>
+            <div class="input-status" role="status" aria-live="polite" id="input-status">STANDING BY · NO PATIENT ADMITTED</div>
+          </form>
+          <div class="privacy-strip"><span>◎ NO TOKEN</span><span>◎ NO WRITES</span><span>◎ NO RAW LOGS</span></div>
+        </div>
+        <aside class="clinic-aside">
+          <div class="aside-kicker">OPERATING PROCEDURE</div>
+          <div class="procedure"><b class="procedure-no">01</b><div><strong>INTAKE</strong><p>Confirm an open PR belongs to a public repository.</p></div></div>
+          <div class="procedure"><b class="procedure-no">02</b><div><strong>OBSERVE</strong><p>Inspect head and available test-merge check contexts.</p></div></div>
+          <div class="procedure"><b class="procedure-no">03</b><div><strong>REVIEW</strong><p>Read a bounded report. GitHub's required checks remain the final gate.</p></div></div>
+          <div class="aside-bottom"><span class="medical-cross">✚</span><span>WE DIAGNOSE THE SYMPTOMS.<br><b>YOU RETAIN THE SCALPEL.</b></span></div>
+        </aside>
+      </div>
+      <section id="report-panel" class="report-panel" aria-live="polite" aria-labelledby="report-heading" hidden>
+        <div class="report-header">
+          <div><span class="label-number">LIVE METADATA / UNVERIFIED</span><h3 id="report-heading">PATIENT CHART</h3></div>
+          <span id="diagnosis-badge" class="diagnosis-badge">UNDETERMINED</span>
+        </div>
+        <p id="diagnosis-description" class="diagnosis-description"></p>
+        <div class="stat-grid">
+          <div class="stat"><small>OBSERVED RECORDS</small><strong id="metric-observed">—</strong></div>
+          <div class="stat"><small>FAILURE SIGNALS</small><strong id="metric-failed">—</strong></div>
+          <div class="stat"><small>STILL RUNNING</small><strong id="metric-pending">—</strong></div>
+          <div class="stat"><small>INSPECTION SCOPE</small><strong id="metric-coverage" class="stat-small">—</strong></div>
+        </div>
+        <div class="report-columns">
+          <div><h4>RECOGNIZED CATEGORIES</h4><div id="category-list" class="category-list"></div></div>
+          <div><h4>SURGICAL NOTES</h4><p class="small-note" id="source-status"></p><p class="small-note">These are CI metadata observations, not proven root causes. Results may omit checks on other refs or beyond the first 100 records. No branch is certified mergeable by this report.</p></div>
+        </div>
+        <div class="report-actions">
+          <a id="view-pr" class="button ghost small" target="_blank" rel="noopener noreferrer" href="https://github.com/">VIEW SOURCE PR ↗</a>
+          <button type="button" class="button ghost small" id="download-report">EXPORT SANITIZED JSON ↓</button>
+        </div>
+        <div class="warning-note">NON-AUTHORITATIVE · PUBLIC METADATA · NO MERGE PERMISSION</div>
+      </section>
+    </section>
+
+    <section class="protocol-section" id="protocol" aria-labelledby="protocol-heading">
+      <div class="wrap protocol-inner">
+        <div><span class="label-number">02 / THE SAFETY PROTOCOL</span><h2 id="protocol-heading">DIAGNOSE FIRST.<br><span>MERGE LAST.</span></h2><p>The web clinic is a quick public metadata check. For the original Python diagnostic engine, run the full Smergeon Cloud Clinic through GitHub Actions, no local installation required.</p>
+        <a class="button secondary" href="https://github.com/MichaelWave369/Smergeon/actions/workflows/cloud-clinic.yml" target="_blank" rel="noopener noreferrer">OPEN FULL CLOUD CLINIC ↗</a></div>
+        <div class="protocol-list">
+          <div><span>01</span><strong>OPEN SOURCE</strong><p>MIT licensed, inspectable, auditable.</p></div>
+          <div><span>02</span><strong>READ-ONLY BY DEFAULT</strong><p>Zero browser-side writes or credentials.</p></div>
+          <div><span>03</span><strong>HUMANS HOLD THE KEYS</strong><p>A green status never approves a merge.</p></div>
+          <div><span>04</span><strong>CODE BROWN</strong><p>Recurring-failure detection is on the roadmap, not active here.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="footer-band wrap"><span>✚</span><p>“FIRST, DO NO MERGE HARM.”</p><span>✚</span></section>
+  </main>
+
+  <footer class="site-footer wrap">
+    <span class="footer-brand">SMERGEON<span>.</span> <small>Φ369 LABS</small></span>
+    <p>TOOLS FOR PEOPLE WE MAY NEVER MEET. HUMAN APPROVAL ALWAYS.</p>
+    <div><a href="https://github.com/MichaelWave369/Smergeon" target="_blank" rel="noopener noreferrer">GITHUB ↗</a><a href="https://github.com/MichaelWave369/Smergeon/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT LICENSE ↗</a></div>
+  </footer>
+</body>
+</html>
