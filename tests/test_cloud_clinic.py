@@ -186,7 +186,7 @@ class MergeAwareGitHub(FakeGitHub):
         item = super().pr(number)
         item["mergeable"] = True
         item["merge_commit_sha"] = self.merge_sha if self.has_merge else None
-        if self.stale and self.calls.count("pr") > 1:
+        if self.stale and self.calls.count("pr") > 2:
             item["head"]["sha"] = "c" * 40
         return item
 
