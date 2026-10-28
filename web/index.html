@@ -108,6 +108,23 @@
           <a id="view-pr" class="button ghost small" target="_blank" rel="noopener noreferrer" href="https://github.com/">VIEW SOURCE PR ↗</a>
           <button type="button" class="button ghost small" id="download-report">EXPORT SANITIZED JSON ↓</button>
         </div>
+        <section class="brown-clinic" aria-labelledby="brown-heading">
+          <div class="brown-heading-row">
+            <div><div class="label-number">OPTIONAL / REPEAT-FAILURE WATCH</div><h4 id="brown-heading">CODE <span>BROWN.</span></h4></div>
+            <span class="brown-stamp">HISTORY · NOT ROOT CAUSE</span>
+          </div>
+          <p class="small-note">Check recent public workflow runs across revisions of this PR. Three failed revisions of the same workflow trigger CODE BROWN, but do not establish an identical bug, current failure, or permission to merge.</p>
+          <div class="brown-controls">
+            <button class="button brown-button small" type="button" id="brown-button" disabled>SCAN REPEAT FAILURES ↗</button>
+            <span class="brown-status" id="brown-status" role="status" aria-live="polite">COMPLETE TRIAGE FIRST</span>
+          </div>
+          <div id="brown-results" hidden>
+            <div class="brown-verdict"><strong id="brown-verdict">INSUFFICIENT EVIDENCE</strong><span id="brown-coverage">RECENT 50</span></div>
+            <p class="small-note" id="brown-summary"></p>
+            <div class="brown-workflows" id="brown-workflows"></div>
+            <p class="small-note">Workflow ID matches are not error-signature matches. Reported run histories can be incomplete and may include pending work. Original GitHub checks remain authoritative.</p>
+          </div>
+        </section>
         <div class="warning-note">NON-AUTHORITATIVE · PUBLIC METADATA · NO MERGE PERMISSION</div>
       </section>
     </section>
@@ -120,7 +137,7 @@
           <div><span>01</span><strong>OPEN SOURCE</strong><p>MIT licensed, inspectable, auditable.</p></div>
           <div><span>02</span><strong>READ-ONLY BY DEFAULT</strong><p>Zero browser-side writes or credentials.</p></div>
           <div><span>03</span><strong>HUMANS HOLD THE KEYS</strong><p>A green status never approves a merge.</p></div>
-          <div><span>04</span><strong>CODE BROWN</strong><p>Recurring-failure detection is on the roadmap, not active here.</p></div>
+          <div><span>04</span><strong>CODE BROWN</strong><p>Optional read-only trend watch spots repeated failing workflows across PR revisions. It never guesses the root cause.</p></div>
         </div>
       </div>
     </section>
