@@ -22,11 +22,11 @@ const check = (id,name,conclusion,status='completed') =>
 test('repository input is strict, public GitHub URL permitted', () => {
   assert.deepEqual(parseTarget(' MichaelWave369/Smergeon ','9'),TARGET);
   assert.deepEqual(parseTarget('https://github.com/MichaelWave369/Smergeon/','9'),TARGET);
-  for(const value of ('../bad','owner/..','owner/.','bad','owner/repo/tree/main',
-                        'https://evil.example/owner/repo','owner/<script>')){
+  for(const value of ['../bad','owner/..','owner/.','bad','owner/repo/tree/main',
+                        'https://evil.example/owner/repo','owner/<script>']){
     assert.throws(()=>parseTarget(value,'9'));
   }
-  for(const value of ('0','-1','1.4','abc','1<script>','0009','1234567890')){
+  for(const value of ['0','-1','1.4','abc','1<script>','0009','1234567890']){
     assert.throws(()=>parseTarget('owner/repo',value));
   }
 });
@@ -90,7 +90,7 @@ test('incomplete pagination or missing merge SHA never means CLEAR', () => {
 
 test('mergeability null or conflict with green checks remains uncertain', () => {
   const items=[check(1,'smoke','success')];
-  for(const mergeable of (null,false)){
+  for(const mergeable of [null,false]){
     const value=analyzeResults([context(items)],{mergeable});
     assert.equal(value.state,'unknown');
   }
