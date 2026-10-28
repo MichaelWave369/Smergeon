@@ -239,3 +239,13 @@ to be enabled under **Settings → Pages → Source → GitHub Actions**
 before the URL works.
 
 See [GitHub Pages clinic deployment & test guide](docs/GITHUB_PAGES_CLINIC_V1.md).
+
+## CODE BROWN · On-demand recurring-failure watch
+
+In the [Repository Hospital](https://michaelwave369.github.io/Smergeon/),
+admit an open public PR, then explicitly press **SCAN REPEAT FAILURES**.
+The browser compares recent failures of the same GitHub workflow across
+distinct PR revisions. It requires three consecutive failed revisions to
+report **CODE BROWN**, without falsely claiming the same bug or root cause.
+
+See [CODE BROWN v1 contract](docs/CODE_BROWN_V1.md).
