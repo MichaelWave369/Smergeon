@@ -225,3 +225,17 @@ Smergeon pull requests (same-repository only). It saves three sanitized
 artifacts proving API intake, not a successful repair or merge approval.
 
 See [Real-PR Field Qualification](docs/FIELD_QUALIFICATION_V0_9.md).
+
+## Repository Hospital · GitHub Pages
+
+The public website **[Smergeon Repository Hospital](https://michaelwave369.github.io/Smergeon/)**
+provides a custom, static clinic UI for read-only, anonymous metadata
+checks of open public pull requests, plus one-click access to the
+full GitHub Actions Cloud Clinic.
+
+The browser checker does **not** invoke the Python engine, inspect logs,
+download target source, or grant merge authority. GitHub Pages needs
+to be enabled under **Settings → Pages → Source → GitHub Actions**
+before the URL works.
+
+See [GitHub Pages clinic deployment & test guide](docs/GITHUB_PAGES_CLINIC_V1.md).

@@ -26,3 +26,13 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: CLI help smoke test
         run: python -m smergeon --help
+
+  pages-clinic-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify browser diagnosis contract
+        run: node --test web/tests/*.test.mjs
