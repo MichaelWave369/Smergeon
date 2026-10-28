@@ -12,7 +12,7 @@ WEB = ROOT / "web"
 class PagesSiteTests(unittest.TestCase):
     def test_local_static_assets_exist(self):
         for path in ("index.html", "styles.css", "favicon.svg",
-                     "app.mjs", "clinic-core.mjs", ".nojekyll"):
+                     "app.mjs", "clinic-core.mjs", "code-brown.mjs", ".nojekyll"):
             self.assertTrue((WEB / path).exists(), path)
 
     def test_no_remote_script_or_font_dependency(self):
@@ -42,6 +42,22 @@ class PagesSiteTests(unittest.TestCase):
         self.assertIn("drafts: false", core)
         self.assertIn("parseTarget", core)
         self.assertIn("validateFreshPR", core)
+
+    def test_code_brown_requires_explicit_click_and_never_grants_authority(self):
+        html = (WEB / "index.html").read_text()
+        browser = (WEB / "app.mjs").read_text()
+        logic = (WEB / "code-brown.mjs").read_text()
+        self.assertIn('id="brown-button"', html)
+        self.assertIn('id="brown-results" hidden', html)
+        self.assertIn('brownButton.addEventListener("click"', browser)
+        self.assertIn("confirmSameCodeBrownSource", browser)
+        self.assertIn("encodeURIComponent(source.branch)", browser)
+        self.assertIn("READ-ONLY TREND INSPECTION COMPLETE", browser)
+        for forbidden in ('method: "POST"', 'method: "PATCH"', 'method: "DELETE"',
+                          "Authorization:", "localStorage", "sessionStorage"):
+            self.assertNotIn(forbidden, browser + logic)
+        self.assertIn("merge_authorization: false", logic)
+        self.assertIn("causal_equivalence_proven: false", logic)
 
     def test_pages_deploy_only_from_main(self):
         deploy = (ROOT / ".github/workflows/pages.yml").read_text()
